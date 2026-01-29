@@ -45,6 +45,7 @@ class KeplerianElements():
         self.initial_z_pos = z_pos
         self.initial_z_vel = z_vel
 
+        # From WGS84
         self.mu = 398600441800000
 
         self.r_vector = np.array([self.initial_x_pos, self.initial_y_pos, self.initial_z_pos])
@@ -81,6 +82,8 @@ class KeplerianElements():
 
         self.nu = self.determine_true_anomaly(self.r_vector, self.b_vector)
 
+        self.eccentricity_anomaly = self.determine_eccentricity_anomaly()
+
 
     def determine_acceleration(self, energy, mu):
         return -(mu/(2*energy))
@@ -88,6 +91,11 @@ class KeplerianElements():
 
     def determine_eccentricity(self, b: np.array, mu):
         return np.linalg.norm(b/mu)
+
+    def determine_eccentricity_anomaly(self):
+        n_e = np.dot(self.r_vector, self.r_dot_vector)/math.sqrt(self.mu*self.acceleration)
+        d_e = 1 - (np.linalg.norm(self.r_vector)/self.acceleration)
+        return math.atan2(n_e, d_e)
 
     # Ref: https://www.youtube.com/watch?v=ENXHl7W8Iw0
     def determine_eccentricity_vector(self, r_vector, r_dot_vector, mu):
@@ -181,6 +189,7 @@ def main():
         print(f'Orbit Period          : {ke.tp} seconds')
         print(f'Apogee Radii          : {ke.apogee_radii} meters')
         print(f'Perigee Radii         : {ke.perigee_radii} meters')
+        print(f'Eccentricity Anomaly  : {ke.eccentricity_anomaly}')
         print()
 
 if __name__ == '__main__':
