@@ -1,19 +1,17 @@
-# For each of the orbits in the yaml, compute the following:
-# a, e, i, RAAN, aop, nu
-# Orbit period (TP)
-# Apogee and perigee radii, r-sub-a and r-sub-p respectively
+# Find E_0
+# Find v_0
+# Find M_0
+# Find time of flight from perigee to v_0
+# Find time of flight from v_0 to v = 65 degrees
+# Verify that starting at v_0, compute the true anomaly after the time of flight above
+# Starting at v_0, what is the true anomaly after 2700 seconds?
+# Starting at v_0, what is the true anomaly after exactly two orbit periods
+# What is the true anomaly after 15000 seconds?
 #
-# a - semi-major axis
-# e - Eccentricity
-# i - Inclination
-# RAAN - Right Ascension of Ascending Node
-# aop = Argument of Periapsis
-# nu - True Anomaly
-# TP - Orbit Period
-# r-sub-a - Apoapsis radii
-# r-sub-p - Perigee radii
-#
-# Assume Mu is 3.986004418 × 10^14 m^3/sec^2
+# Compute the Keplarian elements of the given vector (Input as vector2 in the vectors.yaml)
+# Find the perifocal position and velocity, r_vector_0 and v_vector_0
+# Find f, g, f_dot, g_dot, for delta_v = 33 degrees
+# Find r_vector and v_vector
 #
 
 import math
@@ -45,71 +43,70 @@ class KeplerianElements():
         self.initial_z_pos = z_pos
         self.initial_z_vel = z_vel
 
-        # From WGS84
-        self.mu = 398600441800000
+        self.mu = 398600441800000 # From WGS84
+
+        z_hat = [0, 0, 1]
 
         self.r_vector = np.array([self.initial_x_pos, self.initial_y_pos, self.initial_z_pos])
         self.r_dot_vector = np.array([self.initial_x_vel, self.initial_y_vel, self.initial_z_vel])
 
-        self.h_vector = self.determine_h(self.r_vector, self.r_dot_vector)
+        self.h_vector = self.determine_h()        
 
-        z_hat = [0, 0, 1]
+        self.inclination = self.determine_inclination(z_hat)
 
-        self.inclination = self.determine_inclination(self.h_vector, z_hat)
-
-        self.n_hat = self.determine_n_hat(z_hat, self.h_vector)
+        self.n_hat = self.determine_n_hat(z_hat)
         
-        self.raan = self.determine_right_ascension_of_ascending_node(self.n_hat[1], self.n_hat[0])
+        self.raan = self.determine_right_ascension_of_ascending_node()
 
-        self.b_vector = self.determine_b(self.r_vector, self.r_dot_vector, self.h_vector, self.mu)
+        self.b_vector = self.determine_b()
         
-        self.eccentricity = self.determine_eccentricity(self.b_vector, self.mu)
+        self.eccentricity = self.determine_eccentricity()
 
-        self.energy = self.determing_energy(self.r_vector, self.r_dot_vector, self.mu)
+        self.energy = self.determing_energy()
         
-        self.acceleration = self.determine_acceleration(self.energy, self.mu)
+        self.acceleration = self.determine_acceleration()
         
-        self.orbital_period = self.determine_orbital_period(self.acceleration, self.mu)
+        self.orbital_period = self.determine_orbital_period()
         self.tp = self.orbital_period
 
-        self.apogee_radii = self.determine_apogee_radii(self.acceleration, self.energy)
+        self.apogee_radii = self.determine_apogee_radii()
 
-        self.perigee_radii = self.determine_perigee_radii(self.acceleration, self.energy)
+        self.perigee_radii = self.determine_perigee_radii()
 
-        self.aop = self.determine_argument_of_periapsis(self.h_vector, self.n_hat, self.b_vector)
+        self.aop = self.determine_argument_of_periapsis()
 
-        self.eccentricity_vector = self.determine_eccentricity_vector(self.r_vector, self.r_dot_vector, self.mu)
-
-        self.nu = self.determine_true_anomaly(self.r_vector, self.b_vector)
+        self.nu = self.determine_true_anomaly()
 
         self.eccentricity_anomaly = self.determine_eccentricity_anomaly()
 
+        self.mean_anomaly = self.determine_mean_anomaly()
+        
+        self.mean_motion = self.determine_mean_motion()
 
-    def determine_acceleration(self, energy, mu):
-        return -(mu/(2*energy))
 
+    def determine_acceleration(self):
+        return -(self.mu/(2 * self.energy))
 
-    def determine_eccentricity(self, b: np.array, mu):
-        return np.linalg.norm(b/mu)
+    def determine_eccentricity(self):
+        return np.linalg.norm(self.b_vector / self.mu)
 
     def determine_eccentricity_anomaly(self):
         n_e = np.dot(self.r_vector, self.r_dot_vector)/math.sqrt(self.mu*self.acceleration)
         d_e = 1 - (np.linalg.norm(self.r_vector)/self.acceleration)
-        return math.atan2(n_e, d_e)
+        r = math.atan2(n_e, d_e)
 
-    # Ref: https://www.youtube.com/watch?v=ENXHl7W8Iw0
-    def determine_eccentricity_vector(self, r_vector, r_dot_vector, mu):
-        return ((math.pow(np.linalg.norm(r_dot_vector), 2)/mu)-(1/np.linalg.norm(r_vector))) * r_vector - ((np.dot(r_vector, r_dot_vector))/mu) * r_dot_vector
+        if np.dot(self.r_vector, self.b_vector) < 0:
+            r = (2 * math.pi) + r
 
+        return r
 
-    def determine_inclination(self, h_hat: np.array, z_hat: list):
+    def determine_inclination(self, z_hat: list):
         '''Returns in radians, convert to degrees if you need'''
-        return math.acos(np.dot(h_hat, z_hat)/(np.linalg.norm(h_hat)))
+        return math.acos(np.dot(self.h_vector, z_hat)/(np.linalg.norm(self.h_vector)))
 
-
-    def determine_right_ascension_of_ascending_node(self, y, x):
+    def determine_right_ascension_of_ascending_node(self):
         '''Returns in radians, convert to degrees if you need'''
-        r = math.atan2(y, x)
+        r = math.atan2(self.n_hat[1], self.n_hat[0])
 
         # Correct for if we are in quadrant 3 or 4 
         if r < 0:
@@ -117,50 +114,48 @@ class KeplerianElements():
 
         return r
 
-    def determine_true_anomaly(self, r_vector, b_vector):
+    def determine_true_anomaly(self):
         '''Returns in radians, convert to degrees if you need'''
-        r = math.acos((np.dot(r_vector, b_vector))/(np.linalg.norm(r_vector) * np.linalg.norm(b_vector)))
+        r = math.acos((np.dot(self.r_vector, self.b_vector))/(np.linalg.norm(self.r_vector) * np.linalg.norm(self.b_vector)))
 
         # Correct for if we are in quadrant 3 or 4
-        if np.dot(r_vector, b_vector) < 0:
+        if np.dot(self.r_vector, self.b_vector) < 0:
             r = (2 * math.pi) - r
         return r        
 
-
-    def determine_argument_of_periapsis(self, h, n_hat, b):
+    def determine_argument_of_periapsis(self):
         '''Returns in radians, convert to degrees if you need'''
-        return math.atan2(np.dot(h/np.linalg.norm(h), np.cross(n_hat, b/np.linalg.norm(b))), np.dot(n_hat, b/np.linalg.norm(b)))
+        return math.atan2(np.dot(self.h_vector/np.linalg.norm(self.h_vector), np.cross(self.n_hat, self.b_vector/np.linalg.norm(self.b_vector))), np.dot(self.n_hat, self.b_vector/np.linalg.norm(self.b_vector)))
 
+    def determine_orbital_period(self):
+        return 2 * math.pi * math.sqrt((math.pow(self.acceleration, 3))/self.mu)
 
-    def determine_orbital_period(self, a, mu):
-        return 2 * math.pi * math.sqrt((math.pow(a, 3))/mu)
+    def determine_apogee_radii(self):
+        return self.acceleration * (1 + self.energy)
 
+    def determine_perigee_radii(self):
+        return self.acceleration * (1 - self.energy)
 
-    def determine_apogee_radii(self, a, e):
-        return a * (1 + e)
+    def determing_energy(self):
+        return (math.pow(np.linalg.norm(self.r_dot_vector), 2)/2) - (self.mu/np.linalg.norm(self.r_vector))
 
-
-    def determine_perigee_radii(self, a, e):
-        return a * (1 - e)
-
-
-    def determing_energy(self, r, r_dot, mu):
-        return (math.pow(np.linalg.norm(r_dot), 2)/2) - (mu/np.linalg.norm(r))
-
-
-    def determine_h(self, r: np.array, r_dot: np.array):
+    def determine_h(self):
         '''Returns the H-Hat, the cross product of the position vector (r) and the velocity vector (r-dot)'''
-        return np.cross(r, r_dot)
+        return np.cross(self.r_vector, self.r_dot_vector)
 
-
-    def determine_n_hat(self, z_hat: list, h: np.array):
+    def determine_n_hat(self, z_hat: list):
         '''Returns the N-Hat'''
-        return np.cross(z_hat, h)/np.linalg.norm(np.cross(z_hat, h))
+        return np.cross(z_hat, self.h_vector)/np.linalg.norm(np.cross(z_hat, self.h_vector))
 
+    def determine_b(self):
+        return np.cross(self.r_dot_vector, self.h_vector) - (self.mu * (self.r_vector/np.linalg.norm(self.r_vector))) 
 
-    def determine_b(self, r, r_dot, h, mu):
-        return np.cross(r_dot, h) - (mu * (r/np.linalg.norm(r))) 
-    
+    def determine_mean_motion(self):
+        return math.sqrt(self.mu/math.pow(self.acceleration, 3))
+
+    def determine_mean_anomaly(self):
+        return self.eccentricity_anomaly - self.eccentricity * math.sin(self.eccentricity_anomaly)
+
 
 def main():
 
@@ -176,7 +171,7 @@ def main():
                                vector_data['vectors'][f'vector{i}']['x_velocity'],
                                vector_data['vectors'][f'vector{i}']['y_velocity'],
                                vector_data['vectors'][f'vector{i}']['z_velocity'])
-
+        break
         print(f'----- Vector {i} -----')
         print(f'Position Vector       : {ke.r_vector}')
         print(f'Velocity Vector       : {ke.r_dot_vector}')
@@ -189,7 +184,12 @@ def main():
         print(f'Orbit Period          : {ke.tp} seconds')
         print(f'Apogee Radii          : {ke.apogee_radii} meters')
         print(f'Perigee Radii         : {ke.perigee_radii} meters')
-        print(f'Eccentricity Anomaly  : {ke.eccentricity_anomaly}')
+        print(f'Eccentricity Anomaly  : {ke.eccentricity_anomaly} radians')
+        print(f'Eccentricity Anomaly  : {math.degrees(ke.eccentricity_anomaly)} Degrees')
+        print(f'Mean Anomaly          : {ke.mean_anomaly}')
+        print(f'Mean Anomaly          : {math.degrees(ke.mean_anomaly)} Degrees')
+        print(f'Mean Motion           : {ke.mean_motion}')
+        print(f'Mean Motion           : {math.degrees(ke.mean_motion)} Degrees')
         print()
 
 if __name__ == '__main__':
