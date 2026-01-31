@@ -276,12 +276,12 @@ def main():
     print()
 
     loc_after_2700, perigee_passes = ke1.determine_location_after_n_seconds(2700, ke1.E0)
-    print(f'Location after 2700s (EA)     : {loc_after_2700} Radians')
-    print(f'Location after 2700s (EA)     : {math.degrees(loc_after_2700)} Degrees')
-    print(f'Perigee passes after 2700s (EA): {perigee_passes}')
+    print(f'Location after 2700s (EA)       : {loc_after_2700} Radians')
+    print(f'Location after 2700s (EA)       : {math.degrees(loc_after_2700)} Degrees')
+    print(f'Perigee passes after 2700s (EA) : {perigee_passes}')
 
-    print(f'Location after 2700s (Nu)     : {ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_2700)} Radians')
-    print(f'Location after 2700s (Nu)     : {math.degrees(ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_2700))} Degrees')
+    print(f'Location after 2700s (Nu)       : {ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_2700)} Radians')
+    print(f'Location after 2700s (Nu)       : {math.degrees(ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_2700))} Degrees')
 
     print()
 
@@ -290,20 +290,20 @@ def main():
     print(f'Location after 2 TP, E0       : {math.degrees(loc_after_2TP)} Degrees')
     print(f'Perigee passes after 2TP, E0  : {perigee_passes}')
 
-    print(f'Location after 2 TP, Nu       : {ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_2TP)} radians')
-    print(f'Location after 2 TP, Nu       : {math.degrees(ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_2TP))} Degrees')
-    print(f'Perigee passes after 2TP, Nu  : {perigee_passes}')
+    print(f'Location after 2 TP, (Nu)     : {ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_2TP)} radians')
+    print(f'Location after 2 TP, (Nu)     : {math.degrees(ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_2TP))} Degrees')
+    print(f'Perigee passes after 2TP, (Nu): {perigee_passes}')
 
     print()
 
     loc_after_15000, perigee_passes = ke1.determine_location_after_n_seconds(15000, ke1.E0)
-    print(f'Location after 15000s, E0     : {loc_after_15000} Radians')
-    print(f'Location after 15000s, E0     : {math.degrees(loc_after_15000)} Degrees')
-    print(f'Perigee passes after 15000s, E0: {perigee_passes}')
+    print(f'Location after 15000s, (EA)        : {loc_after_15000} Radians')
+    print(f'Location after 15000s, (EA)        : {math.degrees(loc_after_15000)} Degrees')
+    print(f'Perigee passes after 15000s, (EA)  : {perigee_passes}')
 
-    print(f'Location after 15000s, Nu     : {ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_15000)} Radians')
-    print(f'Location after 15000s, Nu     : {math.degrees(ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_15000))} Degrees')
-    print(f'Perigee passes after 15000s, Nu: {perigee_passes}')
+    print(f'Location after 15000s, (Nu)        : {ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_15000)} Radians')
+    print(f'Location after 15000s, (Nu)        : {math.degrees(ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_15000))} Degrees')
+    print(f'Perigee passes after 15000s, (Nu)  : {perigee_passes}')
     print()
 
 
@@ -316,7 +316,9 @@ def main():
                                vector_data['vectors'][f'vector2']['y_velocity'],
                                vector_data['vectors'][f'vector2']['z_velocity'])
     
+    print('Keplarian Elements')
     ke2.print_ke()
+    
     
 
 if __name__ == '__main__':
