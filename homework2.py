@@ -87,7 +87,7 @@ class KeplerianElements():
 
         self.v0 = self.determine_v_0()
 
-        self.E0 = self.determine_E_0()
+        self.E0 = self.determine_E_0(self.eccentricity_anomaly)
 
 
     def determine_acceleration(self):
@@ -111,7 +111,6 @@ class KeplerianElements():
         radian_angle = math.radians(angle)
 
         return math.acos((self.eccentricity + math.cos(radian_angle))/(1 + self.eccentricity * math.cos(radian_angle)))
-        #return math.asin((math.sin(radian_angle * math.sqrt(1 - math.pow(self.eccentricity, 2))))/(1 - self.eccentricity * math.cos(radian_angle)))
 
     def determine_inclination(self, z_hat: list):
         '''Returns in radians, convert to degrees if you need'''
@@ -186,30 +185,48 @@ class KeplerianElements():
     def determine_v_0(self):
         return self.nu
 
-    def determine_E_0(self):
-        return math.atan2(math.sin(self.eccentricity_anomaly), math.cos(self.eccentricity_anomaly))
+    def determine_E_0(self, eccentric_anomaly):
+        return math.atan2(math.sin(eccentric_anomaly), math.cos(eccentric_anomaly))
     
     def determine_time_of_flight(self, mean_anomaly):
         return mean_anomaly/self.mean_motion
     
     def determine_time_to_angle(self, angle, perigee_passes=0):
-        '''Provided an angle from 0-360, returns the seconds to reach that angle from Nu'''
+        '''Provided an angle from 0-360, returns the seconds to reach that angle from Nu, only works for 0-180'''
         E_1 = self.determine_arbitrary_eccentric_anomaly(angle)
 
-        return math.sqrt(math.pow(self.acceleration, 3)/self.mu) * ((2 * math.pi * perigee_passes) + (E_1 - self.eccentricity * math.sin(E_1)) - self.mean_anomaly)
+        pt_1 = E_1 - self.eccentricity * math.sin(E_1)
+        pt_2 = self.mean_anomaly
+
+        time_to_angle = math.sqrt(math.pow(self.acceleration, 3)/self.mu) * ((2 * math.pi * perigee_passes) + pt_1 - pt_2)
+
+        if time_to_angle < 0:
+            time_to_angle = time_to_angle + 2 * math.pi
+        
+        return time_to_angle
 
 
-
-    def determine_location_after_n_seconds(self, seconds):
+    def determine_location_after_n_seconds(self, seconds, nu):
         '''Implemented with Keplers Equation'''
+        cur_E0 = nu
         
-        # This isn't quite right
-        location = self.nu + (self.mean_motion * seconds)
+        for i in range(0,10):
+            cur_E0 = cur_E0 + (self.mean_motion * seconds + self.mean_anomaly - (cur_E0 - self.eccentricity * math.sin(cur_E0)))/(1 - self.eccentricity * math.cos(cur_E0))
 
-        while location > (2 * math.pi):
-            location = location - (2 * math.pi)
+        perigee_passes = math.trunc((cur_E0 - nu)/(2*math.pi))
+
+        # Correct if we perform multiple orbits
+        cur_E0 = cur_E0 % (2*math.pi)
+
+        return (cur_E0, perigee_passes)
+    
+    def determine_true_anomaly_from_eccentric_anomaly(self, eccentric_anomaly):
+        nu = math.atan2((math.sin(eccentric_anomaly)*math.sqrt(1-math.pow(self.eccentricity, 2)))/(1-self.eccentricity*math.cos(eccentric_anomaly)), (math.cos(eccentric_anomaly)-self.eccentricity)/(1-self.eccentricity*math.cos(eccentric_anomaly)))
         
-        return location
+        if nu < 0:
+            nu = nu + 2*math.pi
+        
+        return nu
 
 
 
@@ -226,17 +243,20 @@ def main():
                                vector_data['vectors'][f'vector1']['y_velocity'],
                                vector_data['vectors'][f'vector1']['z_velocity'])
 
+    print(f'Nu                            : {ke1.nu} Radians')
+    print(f'Nu                            : {math.degrees(ke1.nu)} Degrees')
+
     print(f'E_0                           : {ke1.E0} Radians')
     print(f'E_0                           : {math.degrees(ke1.E0)} Degrees')
 
     print(f'v_0                           : {ke1.v0} Radians')
     print(f'v_0                           : {math.degrees(ke1.v0)} Degrees')
 
-    print(f'Mean Motion                   : {ke1.mean_motion} radians')
-    print(f'Mean Motion                   : {math.degrees(ke1.mean_motion)} Degrees')
+    print(f'Mean Motion (M)               : {ke1.mean_motion} radians')
+    print(f'Mean Motion (M)               : {math.degrees(ke1.mean_motion)} Degrees')
 
-    print(f'Mean Anomaly                  : {ke1.mean_anomaly}')
-    print(f'Mean Anomaly                  : {math.degrees(ke1.mean_anomaly)} Degrees')
+    print(f'Mean Anomaly (n)              : {ke1.mean_anomaly}')
+    print(f'Mean Anomaly (n)              : {math.degrees(ke1.mean_anomaly)} Degrees')
 
     print(f'Time of Flight from perigee   : {ke1.determine_time_of_flight(ke1.mean_anomaly)} seconds')
 
@@ -244,13 +264,49 @@ def main():
     print(f'Eccentic angle at 65 degrees  : {math.degrees(ke1.determine_arbitrary_eccentric_anomaly(65))} Degrees')
 
     print(f'Time to 65 Degrees            : {ke1.determine_time_to_angle(65)} seconds')
-    print(f'Nu check using seconds above  : {ke1.determine_location_after_n_seconds(ke1.determine_time_to_angle(65))} radians')
-    print(f'Nu check using seconds above  : {math.degrees(ke1.determine_location_after_n_seconds(ke1.determine_time_to_angle(65)))} Degrees')
 
-    print(f'Location after 2700s          : {math.degrees(ke1.determine_location_after_n_seconds(2700))} Degrees')
+    time_to_angle_65, perigee_passes = ke1.determine_location_after_n_seconds(ke1.determine_time_to_angle(65), ke1.E0)
+    print(f'Newton-Raphson (EA)           : {time_to_angle_65} radians')
+    print(f'Newton-Raphson (EA)           : {math.degrees(time_to_angle_65)} Degrees')
+
+    true_anomaly_65 = ke1.determine_true_anomaly_from_eccentric_anomaly(time_to_angle_65)
+    print(f'Newton-Raphson (Nu)           : {true_anomaly_65} radians')
+    print(f'Newton-Raphson (Nu)           : {math.degrees(true_anomaly_65)} Degrees')
+
     print()
 
-    exit()
+    loc_after_2700, perigee_passes = ke1.determine_location_after_n_seconds(2700, ke1.E0)
+    print(f'Location after 2700s (EA)     : {loc_after_2700} Radians')
+    print(f'Location after 2700s (EA)     : {math.degrees(loc_after_2700)} Degrees')
+    print(f'Perigee passes after 2700s (EA): {perigee_passes}')
+
+    print(f'Location after 2700s (Nu)     : {ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_2700)} Radians')
+    print(f'Location after 2700s (Nu)     : {math.degrees(ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_2700))} Degrees')
+
+    print()
+
+    loc_after_2TP, perigee_passes = ke1.determine_location_after_n_seconds(2*ke1.tp, ke1.E0)
+    print(f'Location after 2 TP, E0       : {loc_after_2TP} radians')
+    print(f'Location after 2 TP, E0       : {math.degrees(loc_after_2TP)} Degrees')
+    print(f'Perigee passes after 2TP, E0  : {perigee_passes}')
+
+    print(f'Location after 2 TP, Nu       : {ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_2TP)} radians')
+    print(f'Location after 2 TP, Nu       : {math.degrees(ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_2TP))} Degrees')
+    print(f'Perigee passes after 2TP, Nu  : {perigee_passes}')
+
+    print()
+
+    loc_after_15000, perigee_passes = ke1.determine_location_after_n_seconds(15000, ke1.E0)
+    print(f'Location after 15000s, E0     : {loc_after_15000} Radians')
+    print(f'Location after 15000s, E0     : {math.degrees(loc_after_15000)} Degrees')
+    print(f'Perigee passes after 15000s, E0: {perigee_passes}')
+
+    print(f'Location after 15000s, Nu     : {ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_15000)} Radians')
+    print(f'Location after 15000s, Nu     : {math.degrees(ke1.determine_true_anomaly_from_eccentric_anomaly(loc_after_15000))} Degrees')
+    print(f'Perigee passes after 15000s, Nu: {perigee_passes}')
+    print()
+
+
 
     print(f'----- Vector 2 -----')
     ke2 = KeplerianElements(vector_data['vectors'][f'vector2']['x_pos'],
